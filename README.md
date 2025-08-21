@@ -27,7 +27,7 @@ That's it! The tendency assistant will be ready to use immediately.
 3.  **Set Offensive Role:** Manually assign an "Offensive Role" for the player. This is a crucial part of the formula.
 4.  **Save to Roster:** Click "Add Player to Roster". The player will appear in the "Team Roster" table on the right.
 5.  **View Tendencies:** The roster table displays the calculated tendencies for each player. These are the values you should input into the game.
-6.  **Balance Your Roster:** The "Sug. Role" column provides a recommendation based on the player's calculated Offensive Talent Score (OTS) relative to the rest of the team. You can use this suggestion to adjust the "Set Role" for more realistic team chemistry.
+6.  **Balance Your Roster:** The "Sug. Role" column provides a recommendation based on the player's calculated Offensive Talent Score (OTS) relative to the rest of the team. You can use this suggestion to adjust the "Set Role" for more realistic team chemistry. This will make modifications to the initial calculated tendencies, so make sure you use the updated tendencies.
 7.  **Save Your Work:** When you're done, click "Export Roster" to save a `.json` file of your team. Use "Import Roster" to load it back in later.
 
 ## ❓ Frequently Asked Questions (FAQ)
