@@ -11,6 +11,30 @@ An advanced tool for editing player tendencies in College Hoops 2K8, based on th
 -   🚀 **Team Tempo Modifier:** Adjust the team's playstyle from "Very Slow (Grind it out)" to "Very Fast (Run and Gun)," which globally modifies the calculated tendencies.
 -   🔍 **Transparent Formulas:** Hover over any calculated tendency in the roster table or the result card to see a detailed breakdown of the formula and the modifiers that produced the final value.
 
+## ⚙️ Setup and Running Locally
+
+This project is a static web application and does not require a complex build process.
+
+**Option 1: Simple (Open the file)**
+
+1.  Clone or download this repository to your local machine.
+2.  Navigate to the project folder.
+3.  Simply open the `index.html` file in your preferred web browser (like Chrome, Firefox, or Edge).
+
+**Option 2: Recommended (Using a local server)**
+
+For the best experience and to avoid potential browser security issues with local files (`file:///` protocol), it's recommended to serve the files using a simple local web server.
+
+1.  **If you have Python installed:**
+    -   Open a terminal or command prompt in the project's root directory.
+    -   Run the command: `python -m http.server` (for Python 3) or `python -m SimpleHTTPServer` (for Python 2).
+    -   Open your browser and go to `http://localhost:8000`.
+
+2.  **If you use Visual Studio Code:**
+    -   Install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension.
+    -   Open the project folder in VS Code.
+    -   Right-click on `index.html` in the file explorer and select "Open with Live Server".
+
 ## 🚀 How to Use
 
 1.  **Set Your Team Tempo:** Use the "Team Tempo" dropdown to select your team's primary playstyle. This will influence all tendency calculations.
@@ -29,7 +53,7 @@ The "Dynamic Role & Attribute Modeling" (DRAM) system is a formulaic approach to
 
 **How are "Suggested Roles" calculated?**
 
-The application calculates a "Offensive Talent Score" (OTS) for each player based on a weighted average of their most critical offensive attributes (Overall, Shooting, Shot Creation, Consistency). Players are then ranked by their OTS, and the top-ranked players are suggested as the 1st, 2nd, and 3rd offensive options.
+The application calculates a proprietary "Offensive Talent Score" (OTS) for each player based on a weighted average of their most critical offensive attributes (Overall, Shooting, Shot Creation, Consistency). Players are then ranked by their OTS, and the top-ranked players are suggested as the 1st, 2nd, and 3rd offensive options.
 
 **What do the abbreviations in the calculation breakdown mean?**
 
@@ -52,6 +76,6 @@ Use the **"Export Roster"** button. This will download a `ch2k8-dram-roster.json
 
 ## Credits
 
-This tool and its formulas are inspired by the incredible work of **"Ole Man Games"** and **iMaynor** and the dedicated College Hoops 2K8 community. This app is a tribute to their effort to keep the game alive and thriving.
+This tool and its formulas are inspired by the incredible work of "Ole Man Games" and iMaynor and the dedicated College Hoops 2K8 community. This app is a tribute to their effort to keep the game alive and thriving.
 
 This tool is for educational and entertainment purposes and is not affiliated with 2K Sports.
