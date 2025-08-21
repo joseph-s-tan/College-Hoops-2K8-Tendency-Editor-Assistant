@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,18 +5,742 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>College Hoops 2K8 Tendency Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "react": "https://esm.sh/react@^19.1.1"
+  <script type="importmap">
+  {
+    "imports": {
+      "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+      "react/": "https://esm.sh/react@^19.1.1/",
+      "react": "https://esm.sh/react@^19.1.1"
+    }
   }
-}
-</script>
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-gray-900 text-white">
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <div id="root">
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; flex-direction: column;">
+      <p style="font-size: 1.2rem;">Loading Assistant...</p>
+      <noscript>
+        <p style="color: #f87171; margin-top: 1rem;">This application requires JavaScript to run. Please enable it in your browser settings.</p>
+      </noscript>
+    </div>
+  </div>
+  <script type="text/babel" data-type="module">
+import React, { useState, useRef, useMemo } from 'react';
+import ReactDOM from 'react-dom/client';
+
+// --- Type Definitions (Enums as Objects) ---
+const Position = {
+  PG: 'Point Guard (PG)',
+  SG: 'Shooting Guard (SG)',
+  SF: 'Small Forward (SF)',
+  PF: 'Power Forward (PF)',
+  C: 'Center (C)',
+};
+
+const TeamTempo = {
+    VerySlow: 'Very Slow (Grind it out)',
+    Slow: 'Slow',
+    Balanced: 'Balanced',
+    Fast: 'Fast',
+    VeryFast: 'Very Fast (Run and Gun)',
+};
+
+const OffensiveRole = {
+    First: '1st Option',
+    Second: '2nd Option',
+    Third: '3rd Option',
+    RolePlayer: 'Role Player',
+};
+
+
+// --- UTILS: tendencyCalculator ---
+
+const getFinishingModifier = (shootInTraffic) => {
+    if (shootInTraffic >= 90) return { val: 15, str: "+15" };
+    if (shootInTraffic >= 80) return { val: 8, str: "+8" };
+    if (shootInTraffic < 70) return { val: -10, str: "-10" };
+    return { val: 0, str: "+0" };
+};
+
+const getShootingModifier = (shootOffDribble) => {
+    if (shootOffDribble >= 90) return { val: 15, str: "+15" };
+    if (shootOffDribble >= 80) return { val: 8, str: "+8" };
+    if (shootOffDribble < 70) return { val: -10, str: "-10" };
+    return { val: 0, str: "+0" };
+};
+
+const getConsistencyWeightingFactor = (consistency) => {
+    if (consistency >= 90) return { val: 1.10, str: "x1.10" };
+    if (consistency >= 80) return { val: 1.05, str: "x1.05" };
+    if (consistency >= 60) return { val: 0.95, str: "x0.95" };
+    if (consistency < 60) return { val: 0.90, str: "x0.90" };
+    return { val: 1.00, str: "x1.00" };
+};
+
+const getSystemTempoModifier = (tempo) => {
+    switch (tempo) {
+        case TeamTempo.VerySlow: return { val: 0.85, str: "x0.85" };
+        case TeamTempo.Slow: return { val: 0.95, str: "x0.95" };
+        case TeamTempo.Fast: return { val: 1.05, str: "x1.05" };
+        case TeamTempo.VeryFast: return { val: 1.10, str: "x1.10" };
+        case TeamTempo.Balanced:
+        default:
+            return { val: 1.00, str: "x1.00" };
+    }
+};
+
+const getASM = (rating) => {
+    let val;
+    if (rating >= 90) val = 20;
+    else if (rating >= 80) val = 10;
+    else if (rating >= 70) val = 0;
+    else if (rating >= 60) val = -10;
+    else if (rating >= 50) val = -20;
+    else val = -30;
+    return { val, str: val >= 0 ? `+${val}` : `${val}` };
+};
+
+const getOHM = (role) => {
+    let val;
+    switch (role) {
+        case OffensiveRole.First:
+            val = 1.15;
+            break;
+        case OffensiveRole.Second:
+            val = 1.05;
+            break;
+        case OffensiveRole.Third:
+            val = 0.95;
+            break;
+        case OffensiveRole.RolePlayer:
+        default:
+            val = 0.80;
+            break;
+    }
+    return { val, str: `x${val.toFixed(2)}` };
+};
+
+const calculateTendencies = (attributes, teamTempo) => {
+    const {
+        offensiveRole, closeShot, layup, dunk, standingDunk, midRangeShot,
+        threePointShot, handling, passing, shootInTraffic, shootOffDribble, consistency
+    } = attributes;
+
+    const ohm = getOHM(offensiveRole);
+    const cwf = getConsistencyWeightingFactor(consistency);
+    const stm = getSystemTempoModifier(teamTempo);
+    const fm = getFinishingModifier(shootInTraffic);
+    const sm = getShootingModifier(shootOffDribble);
+
+    const calculateSingleTendency = (
+        base,
+        asm,
+        attrMod,
+        attrModName
+    ) => {
+        const preMultiplied = base + asm.val + attrMod.val;
+        const finalValue = preMultiplied * (ohm.val * cwf.val) * stm.val;
+        const cappedValue = Math.round(Math.max(0, Math.min(99, finalValue)));
+        
+        const breakdown = `Base: ${base.toFixed(1)}, ASM: ${asm.str}, ${attrModName}: ${attrMod.str}, OHM: ${ohm.str}, CWF: ${cwf.str}, STM: ${stm.str} => Final: ${cappedValue}`;
+
+        return { value: cappedValue, breakdown };
+    };
+
+    // 1. Close Shot Tendency
+    const closeBase = (closeShot + layup + dunk + standingDunk) / 4;
+    const closeAsm = getASM(closeShot);
+    const closeShotTendency = calculateSingleTendency(closeBase, closeAsm, fm, 'FM');
+
+    // 2. Mid-Range Shot Tendency
+    const midRangeBase = midRangeShot;
+    const midRangeAsm = getASM(midRangeShot);
+    const midRangeShotTendency = calculateSingleTendency(midRangeBase, midRangeAsm, sm, 'SM');
+
+    // 3. Three-Point Shot Tendency
+    const threePointBase = threePointShot;
+    const threePointAsm = getASM(threePointShot);
+    const threePointShotTendency = calculateSingleTendency(threePointBase, threePointAsm, sm, 'SM');
+    
+    // 4. Drive the Lane Tendency
+    const driveBase = (closeShot + layup + handling + passing) / 4;
+    const driveAsm = getASM(closeShot);
+    const driveTheLaneTendency = calculateSingleTendency(driveBase, driveAsm, fm, 'FM');
+
+    return {
+        closeShot: closeShotTendency,
+        midRangeShot: midRangeShotTendency,
+        threePointShot: threePointShotTendency,
+        driveTheLane: driveTheLaneTendency,
+    };
+};
+
+// --- UTILS: rosterUtils ---
+const calculateOTS = (attributes) => {
+    const {
+        overall, closeShot, midRangeShot, threePointShot,
+        handling, shootOffDribble, consistency
+    } = attributes;
+
+    const overallTalent = overall * 0.4;
+    const scoringProwess = ((closeShot + midRangeShot + threePointShot) / 3) * 0.3;
+    const shotCreation = ((handling + shootOffDribble) / 2) * 0.2;
+    const reliability = consistency * 0.1;
+
+    return overallTalent + scoringProwess + shotCreation + reliability;
+};
+
+const getSuggestedRoles = (players) => {
+    if (players.length === 0) {
+        return new Map();
+    }
+
+    const playersWithOTS = players.map(player => ({
+        id: player.id,
+        ots: calculateOTS(player.attributes),
+    }));
+
+    playersWithOTS.sort((a, b) => b.ots - a.ots);
+
+    const suggestedRoles = new Map();
+    playersWithOTS.forEach((player, index) => {
+        let role;
+        switch (index) {
+            case 0:
+                role = OffensiveRole.First;
+                break;
+            case 1:
+                role = OffensiveRole.Second;
+                break;
+            case 2:
+                role = OffensiveRole.Third;
+                break;
+            default:
+                role = OffensiveRole.RolePlayer;
+                break;
+        }
+        suggestedRoles.set(player.id, role);
+    });
+
+    return suggestedRoles;
+};
+
+
+// --- HOOKS: useTendencyCalculator ---
+const useTendencyCalculator = (attributes, teamTempo) => {
+    return useMemo(() => calculateTendencies(attributes, teamTempo), [attributes, teamTempo]);
+};
+
+
+// --- COMPONENTS ---
+
+const AttributeInput = ({ label, value, onChange, min = 25, max = 99 }) => {
+  const handleInputChange = (e) => {
+    const rawValue = e.target.value;
+    if (rawValue === '') {
+        onChange(min);
+        return;
+    }
+    
+    let numValue = parseInt(rawValue, 10);
+
+    if (!isNaN(numValue)) {
+      if (numValue > max) numValue = max;
+      if (numValue < min) numValue = min;
+      onChange(numValue);
+    }
+  };
+
+  return (
+    <div className="flex flex-col">
+      <label htmlFor={label} className="mb-2 text-sm font-medium text-gray-400">{label}</label>
+      <input
+        id={label}
+        type="number"
+        value={value}
+        onChange={handleInputChange}
+        min={min}
+        max={max}
+        className="bg-gray-700 border border-gray-600 text-white text-center rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+        aria-label={label}
+      />
+    </div>
+  );
+};
+
+const PositionSelector = ({ value, onChange }) => {
+  return (
+    <div className="flex flex-col">
+      <label htmlFor="position" className="mb-2 text-sm font-medium text-gray-400">Position</label>
+      <select
+        id="position"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+      >
+        {Object.values(Position).map((pos) => (
+          <option key={pos} value={pos}>{pos}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+const OffensiveRoleSelector = ({ value, onChange }) => {
+  return (
+    <div className="flex flex-col">
+      <label htmlFor="offensive-role" className="mb-2 text-sm font-medium text-gray-400">Offensive Role</label>
+      <select
+        id="offensive-role"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+      >
+        {Object.values(OffensiveRole).map((role) => (
+          <option key={role} value={role}>{role}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+const TeamTempoSelector = ({ value, onChange }) => {
+  return (
+    <div className="flex flex-col h-full justify-between">
+      <label htmlFor="team-tempo" className="mb-2 text-sm font-medium text-gray-400">Team Tempo</label>
+      <select
+        id="team-tempo"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+      >
+        {Object.values(TeamTempo).map((tempo) => (
+          <option key={tempo} value={tempo}>{tempo}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+// Fix for Tailwind JIT: use full class names so they can be detected.
+const getResultBarTextClassName = (colorClass) => {
+    switch (colorClass) {
+        case 'blue': return 'text-base font-bold text-blue-400';
+        case 'green': return 'text-base font-bold text-green-400';
+        case 'yellow': return 'text-base font-bold text-yellow-400';
+        case 'red': return 'text-base font-bold text-red-400';
+        default: return 'text-base font-bold text-white';
+    }
+}
+const getResultBarBgClassName = (colorClass) => {
+    switch (colorClass) {
+        case 'blue': return 'bg-blue-500 h-2.5 rounded-full';
+        case 'green': return 'bg-green-500 h-2.5 rounded-full';
+        case 'yellow': return 'bg-yellow-500 h-2.5 rounded-full';
+        case 'red': return 'bg-red-500 h-2.5 rounded-full';
+        default: return 'bg-gray-500 h-2.5 rounded-full';
+    }
+}
+
+const ResultBar = ({ label, tendency, colorClass }) => (
+    <div title={tendency.breakdown}>
+        <div className="flex justify-between mb-1">
+            <span className="text-base font-medium text-gray-300">{label}</span>
+            <span className={getResultBarTextClassName(colorClass)}>{tendency.value}</span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2.5" role="progressbar" aria-valuenow={tendency.value} aria-valuemin="0" aria-valuemax="99" aria-label={`${label}: ${tendency.value}`}>
+            <div className={getResultBarBgClassName(colorClass)} style={{ width: `${tendency.value}%` }}></div>
+        </div>
+    </div>
+);
+
+
+const TendencyResultCard = ({ tendencies }) => {
+  return (
+    <div className="bg-gray-800 p-6 rounded-2xl shadow-lg h-full">
+        <h2 className="text-2xl font-bold mb-6 text-white text-center border-b border-gray-700 pb-4">Calculated Tendencies</h2>
+        <div className="space-y-6">
+            <ResultBar label="Close Shot Tendency" tendency={tendencies.closeShot} colorClass="blue" />
+            <ResultBar label="Mid-Range Shot Tendency" tendency={tendencies.midRangeShot} colorClass="green" />
+            <ResultBar label="Three-Point Shot Tendency" tendency={tendencies.threePointShot} colorClass="yellow" />
+            <ResultBar label="Drive the Lane Tendency" tendency={tendencies.driveTheLane} colorClass="red" />
+        </div>
+        <div className="mt-8 pt-4 border-t border-gray-700">
+            <h3 className="text-lg font-semibold text-white">Note on Foul Tendency</h3>
+            <p className="text-sm text-gray-400 mt-2">
+                The <span className="font-bold">Commit Foul Tendency</span> is not calculated by a formula. It should be adjusted manually based on in-game observation of the player's performance and foul trouble.
+            </p>
+        </div>
+    </div>
+  );
+};
+
+const PlayerEditor = ({ player, onPlayerChange, onSave, onClear, isEditing, suggestedRole }) => {
+    const handleAttributeChange = (key, value) => {
+        onPlayerChange({
+            ...player,
+            attributes: {
+                ...player.attributes,
+                [key]: value,
+            },
+        });
+    };
+
+    const handleNameChange = (e) => {
+        onPlayerChange({ ...player, name: e.target.value });
+    };
+
+    const handleApplySuggestion = () => {
+        if (suggestedRole) {
+            handleAttributeChange('offensiveRole', suggestedRole);
+        }
+    };
+
+    return (
+        <div className="bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col gap-8">
+            <div>
+                <h2 className="text-2xl font-bold mb-6 text-white border-b border-gray-700 pb-4">{isEditing ? 'Edit Player' : 'Add New Player'}</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+                    <div className="flex flex-col sm:col-span-2">
+                        <label htmlFor="player-name" className="mb-2 text-sm font-medium text-gray-400">Player Name</label>
+                        <input
+                            id="player-name"
+                            type="text"
+                            value={player.name}
+                            onChange={handleNameChange}
+                            placeholder="e.g., John Doe"
+                            className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+                        />
+                    </div>
+                    <PositionSelector
+                        value={player.attributes.position}
+                        onChange={(val) => handleAttributeChange('position', val)}
+                    />
+                    <div className="flex flex-col">
+                        <OffensiveRoleSelector
+                            value={player.attributes.offensiveRole}
+                            onChange={(val) => handleAttributeChange('offensiveRole', val)}
+                        />
+                         {isEditing && suggestedRole && (
+                            <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-yellow-400">Suggested: <span className="font-semibold">{suggestedRole}</span></span>
+                                {player.attributes.offensiveRole !== suggestedRole && (
+                                    <button onClick={handleApplySuggestion} className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+                                        Apply
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-xl font-semibold mb-4 text-gray-300">Core Attributes</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                     <AttributeInput label="Overall Rating" value={player.attributes.overall} onChange={(val) => handleAttributeChange('overall', val)} />
+                     <AttributeInput label="Close Shot" value={player.attributes.closeShot} onChange={(val) => handleAttributeChange('closeShot', val)} />
+                     <AttributeInput label="Mid-Range" value={player.attributes.midRangeShot} onChange={(val) => handleAttributeChange('midRangeShot', val)} />
+                     <AttributeInput label="Three-Point" value={player.attributes.threePointShot} onChange={(val) => handleAttributeChange('threePointShot', val)} />
+                     <AttributeInput label="Free Throw" value={player.attributes.freeThrow} onChange={(val) => handleAttributeChange('freeThrow', val)} />
+                     <AttributeInput label="Layup" value={player.attributes.layup} onChange={(val) => handleAttributeChange('layup', val)} />
+                     <AttributeInput label="Dunk" value={player.attributes.dunk} onChange={(val) => handleAttributeChange('dunk', val)} />
+                     <AttributeInput label="Standing Dunk" value={player.attributes.standingDunk} onChange={(val) => handleAttributeChange('standingDunk', val)} min={0} />
+                     <AttributeInput label="Handling" value={player.attributes.handling} onChange={(val) => handleAttributeChange('handling', val)} />
+                     <AttributeInput label="Passing" value={player.attributes.passing} onChange={(val) => handleAttributeChange('passing', val)} />
+                </div>
+            </div>
+
+             <div>
+                <h3 className="text-xl font-semibold mb-4 text-gray-300">Intangibles</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <AttributeInput label="Shoot in Traffic" value={player.attributes.shootInTraffic} onChange={(val) => handleAttributeChange('shootInTraffic', val)} min={0}/>
+                    <AttributeInput label="Shoot Off Dribble" value={player.attributes.shootOffDribble} onChange={(val) => handleAttributeChange('shootOffDribble', val)} min={0}/>
+                    <AttributeInput label="Consistency" value={player.attributes.consistency} onChange={(val) => handleAttributeChange('consistency', val)} min={0}/>
+                </div>
+            </div>
+            <div className="flex items-center justify-end gap-4 mt-4">
+                <button
+                    onClick={onClear}
+                    className="px-6 py-2 text-sm font-medium text-gray-300 bg-gray-600 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-gray-500 transition-colors"
+                >
+                    {isEditing ? 'Cancel' : 'Clear'}
+                </button>
+                <button
+                    onClick={onSave}
+                    className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors shadow-md"
+                >
+                    {isEditing ? 'Update Player' : 'Add Player to Roster'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const shortenRole = (role) => {
+    switch (role) {
+        case OffensiveRole.First: return '1st';
+        case OffensiveRole.Second: return '2nd';
+        case OffensiveRole.Third: return '3rd';
+        case OffensiveRole.RolePlayer: return 'Role';
+        default: return '';
+    }
+};
+
+const RosterTable = ({ players, teamTempo, onEdit, onDelete, suggestedRoles }) => {
+    return (
+        <div className="bg-gray-800 p-6 rounded-2xl shadow-lg h-full flex flex-col">
+            <h2 className="text-2xl font-bold mb-6 text-white text-center border-b border-gray-700 pb-4">Team Roster</h2>
+            {players.length === 0 ? (
+                <div className="flex-grow flex items-center justify-center">
+                    <p className="text-gray-400">Your roster is empty. Add a player using the form.</p>
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-300">
+                        <thead className="text-xs text-gray-400 uppercase bg-gray-700">
+                            <tr>
+                                <th scope="col" className="px-4 py-3">Name</th>
+                                <th scope="col" className="px-4 py-3 text-center">Pos</th>
+                                <th scope="col" className="px-4 py-3 text-center">Ovr</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Set Offensive Role">Set Role</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Suggested Offensive Role">Sug. Role</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Close Shot Tendency">Close</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Mid-Range Shot Tendency">Mid</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Three-Point Shot Tendency">3PT</th>
+                                <th scope="col" className="px-4 py-3 text-center" title="Drive the Lane Tendency">Drive</th>
+                                <th scope="col" className="px-4 py-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {players.map(player => {
+                                const tendencies = calculateTendencies(player.attributes, teamTempo);
+                                const positionShort = player.attributes.position.match(/\(([^)]+)\)/)?.[1] || '';
+                                const setRoleShort = shortenRole(player.attributes.offensiveRole);
+                                const suggestedRole = suggestedRoles.get(player.id);
+                                const suggestedRoleShort = suggestedRole ? shortenRole(suggestedRole) : '-';
+                                return (
+                                    <tr key={player.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                        <th scope="row" className="px-4 py-4 font-medium text-white whitespace-nowrap">{player.name}</th>
+                                        <td className="px-4 py-4 text-center">{positionShort}</td>
+                                        <td className="px-4 py-4 text-center">{player.attributes.overall}</td>
+                                        <td className={`px-4 py-4 text-center font-semibold ${setRoleShort === suggestedRoleShort ? 'text-gray-300' : 'text-yellow-400'}`}>{setRoleShort}</td>
+                                        <td className="px-4 py-4 text-center text-gray-400">{suggestedRoleShort}</td>
+                                        <td className="px-4 py-4 text-center font-mono" title={tendencies.closeShot.breakdown}>{tendencies.closeShot.value}</td>
+                                        <td className="px-4 py-4 text-center font-mono" title={tendencies.midRangeShot.breakdown}>{tendencies.midRangeShot.value}</td>
+                                        <td className="px-4 py-4 text-center font-mono" title={tendencies.threePointShot.breakdown}>{tendencies.threePointShot.value}</td>
+                                        <td className="px-4 py-4 text-center font-mono" title={tendencies.driveTheLane.breakdown}>{tendencies.driveTheLane.value}</td>
+                                        <td className="px-4 py-4 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button onClick={() => onEdit(player.id)} className="font-medium text-blue-400 hover:underline text-xs">Edit</button>
+                                                <button onClick={() => onDelete(player.id)} className="font-medium text-red-400 hover:underline text-xs">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Main App Component ---
+
+const BasketballIcon = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.793V12a9 9 0 1 0-9 9h.793M21 12.793A9 9 0 0 1 12.793 21M21 12.793l-8.207 8.207M12 2.25a.75.75 0 0 1 .75.75v18a.75.75 0 0 1-1.5 0v-18A.75.75 0 0 1 12 2.25Z" />
+    </svg>
+);
+
+const DEFAULT_PLAYER_ATTRIBUTES = {
+    position: Position.PG,
+    offensiveRole: OffensiveRole.RolePlayer,
+    overall: 75, closeShot: 75, layup: 75, dunk: 75,
+    standingDunk: 75, midRangeShot: 75, threePointShot: 75,
+    freeThrow: 75, handling: 75, passing: 75, shootInTraffic: 75,
+    shootOffDribble: 75, consistency: 75,
+};
+
+const INITIAL_FORM_STATE = {
+    id: '',
+    name: '',
+    attributes: DEFAULT_PLAYER_ATTRIBUTES,
+};
+
+
+const App = () => {
+    const [players, setPlayers] = useState([]);
+    const [teamTempo, setTeamTempo] = useState(TeamTempo.Balanced);
+    const [formPlayer, setFormPlayer] = useState(INITIAL_FORM_STATE);
+    const [editingPlayerId, setEditingPlayerId] = useState(null);
+
+    const tendencies = useTendencyCalculator(formPlayer.attributes, teamTempo);
+    const fileInputRef = useRef(null);
+
+    const suggestedRoles = useMemo(() => getSuggestedRoles(players), [players]);
+
+    const handleClearForm = () => {
+        setEditingPlayerId(null);
+        setFormPlayer(INITIAL_FORM_STATE);
+    };
+
+    const handleSavePlayer = () => {
+        if (!formPlayer.name.trim()) {
+            alert('Player name cannot be empty.');
+            return;
+        }
+
+        if (editingPlayerId) {
+            // Update existing player
+            setPlayers(players.map(p => p.id === editingPlayerId ? { ...formPlayer, id: editingPlayerId } : p));
+        } else {
+            // Add new player
+            const newPlayer = { ...formPlayer, id: crypto.randomUUID() };
+            setPlayers([...players, newPlayer]);
+        }
+        handleClearForm();
+    };
+
+    const handleEditPlayer = (id) => {
+        const playerToEdit = players.find(p => p.id === id);
+        if (playerToEdit) {
+            setEditingPlayerId(id);
+            setFormPlayer(playerToEdit);
+        }
+    };
+    
+    const handleDeletePlayer = (id) => {
+        if (window.confirm('Are you sure you want to delete this player?')) {
+            if (id === editingPlayerId) {
+                handleClearForm();
+            }
+            setPlayers(players.filter(p => p.id !== id));
+        }
+    };
+
+    const handleExportRoster = () => {
+        if (players.length === 0) {
+            alert("Roster is empty. Add players before exporting.");
+            return;
+        }
+        const rosterData = { teamTempo, players };
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(rosterData, null, 2))}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = "ch2k8-dram-roster.json";
+        link.click();
+        link.remove();
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileImport = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+    
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("Invalid file content");
+                const data = JSON.parse(text);
+                
+                // Basic validation
+                if (data && data.teamTempo && Array.isArray(data.players)) {
+                    setTeamTempo(data.teamTempo);
+                    setPlayers(data.players);
+                    handleClearForm();
+                    alert('Roster imported successfully!');
+                } else {
+                    throw new Error('Invalid roster file format.');
+                }
+            } catch (error) {
+                console.error('Import failed:', error);
+                alert('Failed to import roster. Please check the file format.');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset input
+    };
+    
+    const suggestedRoleForEditor = editingPlayerId ? suggestedRoles.get(editingPlayerId) : undefined;
+
+    return (
+        <div className="min-h-screen bg-gray-900 text-white font-sans p-4 sm:p-6 lg:p-8">
+            <div className="max-w-screen-2xl mx-auto">
+                <header className="flex items-center justify-center space-x-4 mb-2">
+                    <BasketballIcon className="w-10 h-10 text-orange-500" />
+                    <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight text-white">
+                        CH 2K8 DRAM System
+                    </h1>
+                </header>
+                <p className="text-center text-gray-400 mb-8 -mt-2">Dynamic Role & Attribute Modeling System</p>
+
+                <div className="bg-gray-800 p-4 rounded-2xl shadow-lg mb-8">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 items-end">
+                        <TeamTempoSelector value={teamTempo} onChange={setTeamTempo} />
+                        <div className="sm:col-span-1 md:col-span-3 flex justify-end items-center gap-4">
+                            <button onClick={handleImportClick} className="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-500 transition-colors">
+                                Import Roster
+                            </button>
+                             <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json" className="hidden" />
+                            <button onClick={handleExportRoster} className="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors">
+                                Export Roster
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <main className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <div className="flex flex-col gap-8">
+                        <PlayerEditor 
+                            player={formPlayer}
+                            onPlayerChange={setFormPlayer}
+                            onSave={handleSavePlayer}
+                            onClear={handleClearForm}
+                            isEditing={!!editingPlayerId}
+                            suggestedRole={suggestedRoleForEditor}
+                        />
+                        <TendencyResultCard tendencies={tendencies} />
+                    </div>
+
+                    <RosterTable 
+                        players={players}
+                        teamTempo={teamTempo}
+                        onEdit={handleEditPlayer}
+                        onDelete={handleDeletePlayer}
+                        suggestedRoles={suggestedRoles}
+                    />
+                </main>
+
+                <footer className="text-center mt-12 text-gray-500 text-sm">
+                    <p>DRAM System based on the formulaic approach by "Ole Man Games".</p>
+                    <p>This tool is for educational and entertainment purposes for the College Hoops 2K8 community.</p>
+                </footer>
+            </div>
+        </div>
+    );
+};
+
+
+// --- React Root Rendering ---
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+  </script>
 </body>
 </html>

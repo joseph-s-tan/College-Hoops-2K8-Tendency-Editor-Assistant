@@ -11,31 +11,16 @@ An advanced tool for editing player tendencies in College Hoops 2K8, based on th
 -   🚀 **Team Tempo Modifier:** Adjust the team's playstyle from "Very Slow (Grind it out)" to "Very Fast (Run and Gun)," which globally modifies the calculated tendencies.
 -   🔍 **Transparent Formulas:** Hover over any calculated tendency in the roster table or the result card to see a detailed breakdown of the formula and the modifiers that produced the final value.
 
-## ⚙️ Setup and Running Locally
+## 🚀 Getting Started
 
-This project is a static web application and does not require a complex build process.
+This application is designed for simplicity. No complex setup or local server is required.
 
-**Option 1: Simple (Open the file)**
+1.  Save the `index.html` file to your computer.
+2.  Double-click the file to open it directly in your favorite web browser (like Chrome, Firefox, or Edge).
 
-1.  Clone or download this repository to your local machine.
-2.  Navigate to the project folder.
-3.  Simply open the `index.html` file in your preferred web browser (like Chrome, Firefox, or Edge).
+That's it! The tendency assistant will be ready to use immediately.
 
-**Option 2: Recommended (Using a local server)**
-
-For the best experience and to avoid potential browser security issues with local files (`file:///` protocol), it's recommended to serve the files using a simple local web server.
-
-1.  **If you have Python installed:**
-    -   Open a terminal or command prompt in the project's root directory.
-    -   Run the command: `python -m http.server` (for Python 3) or `python -m SimpleHTTPServer` (for Python 2).
-    -   Open your browser and go to `http://localhost:8000`.
-
-2.  **If you use Visual Studio Code:**
-    -   Install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension.
-    -   Open the project folder in VS Code.
-    -   Right-click on `index.html` in the file explorer and select "Open with Live Server".
-
-## 🚀 How to Use
+## 📖 How to Use
 
 1.  **Set Your Team Tempo:** Use the "Team Tempo" dropdown to select your team's primary playstyle. This will influence all tendency calculations.
 2.  **Add Players:** Use the "Add New Player" form on the left. Fill in the player's name and all of their in-game attributes.
