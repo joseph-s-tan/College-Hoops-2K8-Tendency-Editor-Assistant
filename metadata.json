@@ -1,0 +1,5 @@
+{
+  "name": "College Hoops 2K8 Tendency Editor Assistant",
+  "description": "An assistant to calculate player tendency adjustments for College Hoops 2K8 based on the 'Ole Man Games' formulaic approach. Input player attributes to get calculated tendencies for a more realistic simulation experience.",
+  "requestFramePermissions": []
+}
