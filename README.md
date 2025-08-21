@@ -38,7 +38,7 @@ The "Dynamic Role & Attribute Modeling" (DRAM) system is a formulaic approach to
 
 **How are "Suggested Roles" calculated?**
 
-The application calculates a proprietary "Offensive Talent Score" (OTS) for each player based on a weighted average of their most critical offensive attributes (Overall, Shooting, Shot Creation, Consistency). Players are then ranked by their OTS, and the top-ranked players are suggested as the 1st, 2nd, and 3rd offensive options.
+The application calculates a "Offensive Talent Score" (OTS) for each player based on a weighted average of their most critical offensive attributes (Overall, Shooting, Shot Creation, Consistency). Players are then ranked by their OTS, and the top-ranked players are suggested as the 1st, 2nd, and 3rd offensive options.
 
 **What do the abbreviations in the calculation breakdown mean?**
 
@@ -61,6 +61,6 @@ Use the **"Export Roster"** button. This will download a `ch2k8-dram-roster.json
 
 ## Credits
 
-This tool and its formulas are inspired by the incredible work of "Ole Man Games" and iMaynor and the dedicated College Hoops 2K8 community. This app is a tribute to their effort to keep the game alive and thriving.
+This tool and its formulas are inspired by the incredible work of **Ole Man Games** and **iMaynor** and the dedicated College Hoops 2K8 community. This app is a tribute to their effort to keep the game alive and thriving.
 
 This tool is for educational and entertainment purposes and is not affiliated with 2K Sports.
